@@ -4,8 +4,8 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
-        {/* Load MindAR from CDN with UMD bundle */}
-        <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-three.umd.js" async></script>
+        {/* Load MindAR from local public folder */}
+        <script src="/mindar-image-three.umd.js" async></script>
       </Head>
       <body>
         <Main />
