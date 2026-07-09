@@ -1,35 +1,52 @@
-# Next.js MindAR Photo Recognition & MP4 Generation
+# Next.js MindAR AR Video Player
 
-A modern Next.js application that uses MindAR for recognizing up to 10 photos and generating MP4 videos from the processed data.
+A full-featured Next.js application with MindAR for Augmented Reality marker detection and video playback.
 
 ## ✨ Features
 
-- 📷 **Photo Upload** - Drag & drop interface for uploading up to 10 photos
-- 🔍 **AR Processing** - MindAR-based image recognition and analysis
-- 🎬 **MP4 Generation** - Convert processed photos into video format
-- 📊 **Real-time Progress** - Live feedback during processing
-- 💾 **Download** - Export generated MP4 files
-- 🎨 **Beautiful UI** - Modern design with Tailwind CSS
+### AR Video Playback
+- 🎬 **Auto-play Video** - Plays when marker is detected
+- 🎯 **Centered Rendering** - Video perfectly centered on marker
+- 📏 **No Borders** - Clean, borderless video mesh
+- 🔄 **Loop Support** - Restarts on marker re-detection
+- ⏸️ **Auto-pause** - Stops when marker is lost
+- 🎥 **Transparent Background** - Supports alpha channels
 
-## 🛠 Tech Stack
+### Photo Processing
+- 📷 **Batch Upload** - Process up to 10 photos
+- 🔍 **Detection** - Analyze images for objects
+- 📊 **Results** - View detection statistics
+
+## 🛠️ Tech Stack
 
 - **Framework**: Next.js 14 (Pages Router)
-- **Language**: JavaScript (No TypeScript)
+- **AR**: MindAR (Image tracking)
+- **3D Graphics**: Three.js
+- **Language**: JavaScript
 - **Styling**: Tailwind CSS
-- **UI**: React Components
-- **Video**: MP4 Container Creation
 
-## 📦 Installation
+## 📋 Requirements
+
+### Files needed in `/public`:
+```
+public/
+├── targets.mind              # MindAR target file
+└── fire_letter_A.mp4        # Video to play on marker
+```
+
+## 🚀 Installation
 
 ```bash
-# Clone the repository
+# Clone repository
 git clone https://github.com/b9ygrhg8qz-png/nextjs-mindar.git
 cd nextjs-mindar
 
 # Install dependencies
 npm install
-# or
-yarn install
+
+# Add your files:
+# 1. Place targets.mind in public/
+# 2. Place fire_letter_A.mp4 in public/
 
 # Run development server
 npm run dev
@@ -37,130 +54,147 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## 🚀 Usage
+## 🎯 Usage
 
-1. **Upload Photos**: Drag & drop up to 10 photos into the upload area
-2. **Process**: Click "Process Photos" to analyze images with MindAR
-3. **Generate**: Click "Generate MP4" to create video output
-4. **Download**: Click "Download MP4" to save the file
+### AR Mode (Default)
+1. **Camera Permission** - Grant access when prompted
+2. **Point Camera** - Aim at your image marker
+3. **Auto-play** - Video starts automatically
+4. **Marker Lost** - Video pauses on detection loss
+5. **Re-detect** - Video restarts from beginning
 
-## 📁 Project Structure
+### Photo Processing
+Navigate to `/photos` to process images.
+
+## 📂 Project Structure
 
 ```
 ├── pages/
-│   ├── api/
-│   │   ├── generate-video.js         # MP4 generation endpoint
-│   │   └── process-photos.js         # Image processing endpoint
-│   ├── _app.js                        # App wrapper
-│   ├── _document.js                   # Document wrapper
-│   └── index.js                       # Main page
+│   ├── index.js                  # AR mode
+│   ├── photos.js                 # Photo processor
+│   ├── _app.js
+│   ├── _document.js
+│   └── api/
+│       └── process-photos.js     # Photo processing API
 ├── components/
-│   ├── PhotoUploader.js               # Upload component
-│   ├── ARProcessor.js                 # Processing component
-│   └── VideoGenerator.js              # Video generation component
+│   ├── ARViewer.js              # Main AR component
+│   └── PhotoProcessor.js         # Photo processor component
+├── public/
+│   ├── targets.mind             # Image targets
+│   └── fire_letter_A.mp4        # AR video
 ├── styles/
-│   └── globals.css                    # Global styles
-├── package.json
-├── next.config.js
-├── tailwind.config.js
-└── README.md
+│   └── globals.css
+└── package.json
 ```
 
-## 🔌 API Routes
+## 🔧 Configuration
+
+### Video Properties
+Edit `components/ARViewer.js`:
+```javascript
+// Video scale
+mesh.scale.set(1.5, 1, 1)  // width, height, depth
+
+// Video position
+mesh.position.set(0, 0, 0)  // x, y, z
+```
+
+### Camera Settings
+Edit `components/ARViewer.js`:
+```javascript
+{
+  audio: false,
+  video: {
+    facingMode: 'environment',
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+  },
+}
+```
+
+## 📊 API Routes
 
 ### POST /api/process-photos
-Process uploaded photos with MindAR recognition.
+Process uploaded photos.
 
 **Request**:
 ```
-FormData with 'photos' field containing multiple File objects
+FormData with 'photos' field
 ```
 
 **Response**:
 ```json
 {
   "success": true,
-  "totalPhotos": 10,
-  "detectedObjects": 45,
+  "totalPhotos": 5,
+  "detectedObjects": 23,
   "photos": [
     {
       "filename": "photo.jpg",
-      "size": 1024,
       "detected": 5,
-      "confidence": "0.85"
+      "confidence": "0.92"
     }
   ],
   "timestamp": "2024-01-01T12:00:00Z"
 }
 ```
 
-### POST /api/generate-video
-Generate MP4 video from processed photos.
+## 🎨 Customization
 
-**Request**:
-```
-FormData with 'photos' and 'metadata' fields
-```
+### Video Mesh Properties
+- **Size**: Adjust `mesh.scale.set()`
+- **Position**: Adjust `mesh.position.set()`
+- **Rotation**: Adjust `mesh.rotation.set()`
+- **Transparency**: Edit material properties
 
-**Response**:
-```
-Binary MP4 file
-```
+### Status Display
+Edit `components/ARViewer.js` status overlay colors and position.
 
-## ⚙️ Configuration
+## 🔍 How MindAR Works
 
-Create a `.env.local` file (optional):
+1. **Load Targets** - `targets.mind` contains image target data
+2. **Camera Feed** - Continuous video stream from device camera
+3. **Detection** - Real-time matching against target images
+4. **Anchor** - 3D space positioned on detected marker
+5. **Rendering** - Three.js renders video mesh to canvas
 
-```env
-NEXT_PUBLIC_MAX_PHOTOS=10
-NEXT_PUBLIC_VIDEO_FPS=30
-NEXT_PUBLIC_VIDEO_DURATION=5
-```
+## ⚠️ Troubleshooting
 
-## 🏗️ Building for Production
+**Video not playing**
+- Check browser console for errors
+- Ensure video file is in `/public/`
+- Verify video format (MP4 recommended)
+- Check CORS settings
+
+**Marker not detected**
+- Ensure good lighting
+- Check `targets.mind` file integrity
+- Try different angles/distances
+- Verify camera permissions
+
+**Performance issues**
+- Reduce video resolution
+- Check device CPU/GPU usage
+- Close other tabs
+- Use landscape orientation
+
+## 🚀 Production Build
 
 ```bash
 npm run build
 npm start
 ```
 
-## 📈 Performance
+## 📚 Resources
 
-- Image compression before processing
-- Lazy loading of components
-- Optimized video container creation
-- Server-side processing
+- [MindAR Docs](https://hiukim.github.io/mind-ar-js-doc/)
+- [Three.js Docs](https://threejs.org/docs/)
+- [Next.js Docs](https://nextjs.org/docs)
 
-## 🐛 Troubleshooting
-
-**Issue**: Memory errors with large videos
-- Reduce photo resolution or number of photos
-- Increase Node.js heap: `NODE_OPTIONS=--max-old-space-size=4096 npm start`
-
-**Issue**: Video not generating
-- Check browser console for errors
-- Ensure photos are valid image files
-- Verify API endpoints are working
-
-## 🚧 Future Enhancements
-
-- [ ] Real MindAR SDK integration
-- [ ] Google Vision API integration
-- [ ] Advanced video effects and transitions
-- [ ] WebGL rendering for AR effects
-- [ ] Batch processing with job queue
-- [ ] Cloud storage integration (AWS S3)
-- [ ] Share & collaborate features
-- [ ] FFmpeg.wasm for advanced video encoding
-
-## 📝 License
+## 📄 License
 
 MIT
 
-## 💬 Support
+## 👤 Author
 
-For issues and questions, open a GitHub issue.
-
----
-
-Made with ❤️ using Next.js and MindAR
+Created with ❤️ for AR applications
