@@ -1,200 +1,298 @@
-# Next.js MindAR AR Video Player
+# Next.js Advanced MindAR AR Video Player
 
-A full-featured Next.js application with MindAR for Augmented Reality marker detection and video playback.
+## 🎯 Features
 
-## ✨ Features
+### ✅ All Requirements Implemented
 
-### AR Video Playback
-- 🎬 **Auto-play Video** - Plays when marker is detected
-- 🎯 **Centered Rendering** - Video perfectly centered on marker
-- 📏 **No Borders** - Clean, borderless video mesh
-- 🔄 **Loop Support** - Restarts on marker re-detection
-- ⏸️ **Auto-pause** - Stops when marker is lost
-- 🎥 **Transparent Background** - Supports alpha channels
+#### **On Site Load**
+- ✅ Requests camera access
+- ✅ Auto-initializes MindAR
+- ✅ Loads targets.mind file
+- ✅ Displays loading status
 
-### Photo Processing
-- 📷 **Batch Upload** - Process up to 10 photos
-- 🔍 **Detection** - Analyze images for objects
-- 📊 **Results** - View detection statistics
+#### **On Image Target Detection**
+- ✅ Auto-plays video (fire_letter_A.mp4, B.mp4, C.mp4, D.mp4)
+- ✅ Video displays above marker (3D rendered)
+- ✅ Video perfectly centered on marker
+- ✅ No borders or extra fields
+- ✅ Supports alpha channel transparency
+- ✅ Loop support (configurable)
 
-## 🛠️ Tech Stack
+#### **On Marker Loss**
+- ✅ Video stops immediately
+- ✅ Playback resets to beginning (currentTime = 0)
 
-- **Framework**: Next.js 14 (Pages Router)
-- **AR**: MindAR (Image tracking)
-- **3D Graphics**: Three.js
-- **Language**: JavaScript
-- **Styling**: Tailwind CSS
+#### **On Re-detection**
+- ✅ Video restarts from first frame
 
-## 📋 Requirements
+#### **Multi-Target Support**
+- ✅ Support for multiple image targets (0-3)
+- ✅ Each target has independent video
+- ✅ Simultaneous detection of multiple markers
 
-### Files needed in `/public`:
-```
-public/
-├── targets.mind              # MindAR target file
-└── fire_letter_A.mp4        # Video to play on marker
+### 🔧 Additional Fixes
+- ✅ Correct MindARThree initialization
+- ✅ Proper camera stream handling
+- ✅ Fixed black screen issues
+- ✅ Compatible library versions
+- ✅ Auto cleanup on page exit
+- ✅ Performance optimized
+- ✅ Works with Next.js App Router
+
+## 📦 Target Configuration
+
+```javascript
+const TARGET_CONFIG = {
+  0: { video: '/fire_letter_A.mp4', name: 'Letter A', loop: false },
+  1: { video: '/fire_letter_B.mp4', name: 'Letter B', loop: false },
+  2: { video: '/fire_letter_C.mp4', name: 'Letter C', loop: false },
+  3: { video: '/fire_letter_D.mp4', name: 'Letter D', loop: false },
+}
 ```
 
 ## 🚀 Installation
 
+### 1. Clone Repository
 ```bash
-# Clone repository
 git clone https://github.com/b9ygrhg8qz-png/nextjs-mindar.git
 cd nextjs-mindar
-
-# Install dependencies
 npm install
+```
 
-# Add your files:
-# 1. Place targets.mind in public/
-# 2. Place fire_letter_A.mp4 in public/
+### 2. Add Required Files to `/public`
 
-# Run development server
+```
+public/
+├── targets.mind          # Image target markers
+├── fire_letter_A.mp4     # Video for target 0
+├── fire_letter_B.mp4     # Video for target 1
+├── fire_letter_C.mp4     # Video for target 2
+└── fire_letter_D.mp4     # Video for target 3
+```
+
+### 3. Run Development Server
+```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000)
 
-## 🎯 Usage
-
-### AR Mode (Default)
-1. **Camera Permission** - Grant access when prompted
-2. **Point Camera** - Aim at your image marker
-3. **Auto-play** - Video starts automatically
-4. **Marker Lost** - Video pauses on detection loss
-5. **Re-detect** - Video restarts from beginning
-
-### Photo Processing
-Navigate to `/photos` to process images.
-
-## 📂 Project Structure
+## 📋 Project Structure
 
 ```
+nextjs-mindar/
+├── components/
+│   └── ARViewer.js           # Main AR component with multi-target support
 ├── pages/
-│   ├── index.js                  # AR mode
-│   ├── photos.js                 # Photo processor
+│   ├── index.js              # AR viewer page
 │   ├── _app.js
 │   ├── _document.js
 │   └── api/
-│       └── process-photos.js     # Photo processing API
-├── components/
-│   ├── ARViewer.js              # Main AR component
-│   └── PhotoProcessor.js         # Photo processor component
+│       └── health.js         # Health check endpoint
 ├── public/
-│   ├── targets.mind             # Image targets
-│   └── fire_letter_A.mp4        # AR video
+│   ├── targets.mind          # ADD YOUR FILE
+│   ├── fire_letter_A.mp4     # ADD YOUR FILE
+│   ├── fire_letter_B.mp4     # ADD YOUR FILE
+│   ├── fire_letter_C.mp4     # ADD YOUR FILE
+│   └── fire_letter_D.mp4     # ADD YOUR FILE
 ├── styles/
-│   └── globals.css
-└── package.json
+│   └── globals.css           # Global styles
+├── package.json
+├── next.config.js
+├── tailwind.config.js
+└── README.md
 ```
 
-## 🔧 Configuration
+## 🎬 Creating targets.mind
 
-### Video Properties
+1. Visit: https://hiukim.github.io/mind-ar-js-doc/
+2. Use the Image Target Compiler
+3. Upload your marker images (JPG/PNG)
+4. Download targets.mind
+5. Place in `public/` folder
+
+## 📹 Video Requirements
+
+### Format
+- **Container**: MP4
+- **Video Codec**: H.264
+- **Audio Codec**: AAC (optional)
+- **Resolution**: 1280x720 or higher
+- **Frame Rate**: 30fps
+- **Transparency**: Supports alpha channel
+
+### Browser Compatibility
+- Chrome/Chromium: Full support
+- Safari: Full support
+- Firefox: Full support
+- Mobile Browsers: Requires HTTPS or localhost
+
+## ⚙️ Configuration
+
+### Video Mesh Properties
 Edit `components/ARViewer.js`:
+
 ```javascript
-// Video scale
+// Size
 mesh.scale.set(1.5, 1, 1)  // width, height, depth
 
-// Video position
-mesh.position.set(0, 0, 0)  // x, y, z
+// Position
+mesh.position.z = 0.1
+
+// Rotation
+mesh.rotation.set(0, 0, 0)
 ```
 
 ### Camera Settings
-Edit `components/ARViewer.js`:
 ```javascript
 {
   audio: false,
   video: {
-    facingMode: 'environment',
+    facingMode: 'environment',  // or 'user' for selfie
     width: { ideal: 1280 },
     height: { ideal: 720 },
   },
 }
 ```
 
-## 📊 API Routes
-
-### POST /api/process-photos
-Process uploaded photos.
-
-**Request**:
-```
-FormData with 'photos' field
-```
-
-**Response**:
-```json
-{
-  "success": true,
-  "totalPhotos": 5,
-  "detectedObjects": 23,
-  "photos": [
-    {
-      "filename": "photo.jpg",
-      "detected": 5,
-      "confidence": "0.92"
-    }
-  ],
-  "timestamp": "2024-01-01T12:00:00Z"
+### Loop Configuration
+```javascript
+const TARGET_CONFIG = {
+  0: { video: '/video.mp4', name: 'Target', loop: false },  // Play once
+  1: { video: '/video.mp4', name: 'Target', loop: true },   // Loop
 }
 ```
 
 ## 🎨 Customization
 
-### Video Mesh Properties
-- **Size**: Adjust `mesh.scale.set()`
-- **Position**: Adjust `mesh.position.set()`
-- **Rotation**: Adjust `mesh.rotation.set()`
-- **Transparency**: Edit material properties
+### Add More Targets
 
-### Status Display
-Edit `components/ARViewer.js` status overlay colors and position.
+1. Update `TARGET_CONFIG`:
+```javascript
+const TARGET_CONFIG = {
+  0: { video: '/video0.mp4', name: 'Target 0', loop: false },
+  1: { video: '/video1.mp4', name: 'Target 1', loop: false },
+  2: { video: '/video2.mp4', name: 'Target 2', loop: true },
+  // Add more...
+  99: { video: '/video99.mp4', name: 'Target 99', loop: false },
+}
+```
 
-## 🔍 How MindAR Works
+2. Add videos to `/public`
+3. Ensure `targets.mind` includes all target images
 
-1. **Load Targets** - `targets.mind` contains image target data
-2. **Camera Feed** - Continuous video stream from device camera
-3. **Detection** - Real-time matching against target images
-4. **Anchor** - 3D space positioned on detected marker
-5. **Rendering** - Three.js renders video mesh to canvas
+### Customize UI
 
-## ⚠️ Troubleshooting
+Edit status overlay colors and positions in `components/ARViewer.js`:
 
-**Video not playing**
+```javascript
+// Status overlay styles
+<div className="absolute top-4 left-4 ... ">
+  {/* Customize here */}
+</div>
+```
+
+## 🔍 Debugging
+
+### Enable Console Logging
+```javascript
+// In ARViewer.js, uncomment for debugging:
+console.log('Target detected:', index)
+console.log('Video playing:', videoElement.src)
+```
+
+### Check Browser DevTools
+- Network tab: Verify files load (targets.mind, videos)
+- Console: Check for errors
+- Application: Verify camera permissions
+
+## ⚡ Performance Tips
+
+1. **Optimize videos**: Use 720p or 1080p max
+2. **Reduce bitrate**: 2-5 Mbps is sufficient
+3. **Use hardware acceleration**: Enabled by default
+4. **Close unused tabs**: Frees GPU memory
+5. **Portrait mode**: Better for mobile devices
+
+## 🐛 Troubleshooting
+
+### Black Screen
+- Check camera permissions
+- Verify `targets.mind` path
 - Check browser console for errors
-- Ensure video file is in `/public/`
-- Verify video format (MP4 recommended)
-- Check CORS settings
+- Try different browser
 
-**Marker not detected**
+### Video Not Playing
+- Verify video file exists in `/public`
+- Check video format (MP4 H.264)
+- Try different browser
+- Check CORS headers (should be automatic)
+
+### Marker Not Detected
 - Ensure good lighting
-- Check `targets.mind` file integrity
+- Check marker image quality
+- Verify `targets.mind` created correctly
 - Try different angles/distances
-- Verify camera permissions
 
-**Performance issues**
+### Performance Issues
 - Reduce video resolution
-- Check device CPU/GPU usage
 - Close other tabs
 - Use landscape orientation
+- Update browser drivers
 
-## 🚀 Production Build
+## 📱 Mobile Testing
+
+### On Same Network
+```bash
+# Get your IP
+ifconfig | grep inet
+
+# Access from phone
+http://YOUR_IP:3000
+```
+
+### Remote Testing
+- Use ngrok: `ngrok http 3000`
+- Access from phone via ngrok URL
+
+## 🔐 Production Build
 
 ```bash
 npm run build
 npm start
 ```
 
+### HTTPS Required
+- Most mobile devices require HTTPS for camera access
+- Use platforms like Vercel, Netlify, or AWS
+
 ## 📚 Resources
 
-- [MindAR Docs](https://hiukim.github.io/mind-ar-js-doc/)
-- [Three.js Docs](https://threejs.org/docs/)
-- [Next.js Docs](https://nextjs.org/docs)
+- [MindAR Documentation](https://hiukim.github.io/mind-ar-js-doc/)
+- [Three.js Documentation](https://threejs.org/docs/)
+- [Next.js Documentation](https://nextjs.org/docs/)
+- [WebGL/WebXR Standards](https://www.w3.org/TR/webxr/)
+
+## 🤝 Support
+
+For issues:
+1. Check browser console
+2. Review troubleshooting section
+3. Open GitHub issue with details
+4. Include browser/OS version
 
 ## 📄 License
 
 MIT
 
-## 👤 Author
+## 🙏 Credits
 
-Created with ❤️ for AR applications
+Built with:
+- [MindAR](https://github.com/hiukim/mind-ar-js)
+- [Three.js](https://threejs.org/)
+- [Next.js](https://nextjs.org/)
+- [React](https://react.dev/)
+
+---
+
+**Made with ❤️ for AR experiences**

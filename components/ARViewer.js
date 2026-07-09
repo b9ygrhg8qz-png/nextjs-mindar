@@ -1,34 +1,51 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
+import * as THREE from 'three'
 
 const ARViewer = () => {
   const containerRef = useRef(null)
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const [status, setStatus] = useState('Initializing...')
-  const [markerDetected, setMarkerDetected] = useState(false)
-  const videoPlayerRef = useRef(null)
-  const MindARRef = useRef(null)
+  const [detectedTargets, setDetectedTargets] = useState({})
+  const [error, setError] = useState(null)
+
+  const mindARRef = useRef(null)
   const sceneRef = useRef(null)
   const rendererRef = useRef(null)
   const cameraRef = useRef(null)
-  const videoTextureRef = useRef(null)
-  const videoMeshRef = useRef(null)
+  const videoPlayersRef = useRef({})
+  const videoMeshesRef = useRef({})
+  const anchorsRef = useRef({})
+  const animationIdRef = useRef(null)
+
+  // Target configuration - map target index to video file
+  const TARGET_CONFIG = {
+    0: { video: '/fire_letter_A.mp4', name: 'Letter A', loop: false },
+    1: { video: '/fire_letter_B.mp4', name: 'Letter B', loop: false },
+    2: { video: '/fire_letter_C.mp4', name: 'Letter C', loop: false },
+    3: { video: '/fire_letter_D.mp4', name: 'Letter D', loop: false },
+  }
 
   useEffect(() => {
+    let isMounted = true
+    let streamTracks = []
+
     const initializeMindAR = async () => {
       try {
-        setStatus('Loading MindAR...'
-)
-        
-        // Dynamic import of MindAR
-        const { MINDAR } = await import('mind-ar/dist/mindar-image-three.prod.js')
-        const THREE = await import('three').then(m => m.default)
+        if (!isMounted) return
 
-        MindARRef.current = MINDAR
-        
-        // Initialize camera stream
+        setStatus('Loading MindAR library...')
+
+        // Import MindAR and Three.js
+        const { MINDAR } = await import('mind-ar/dist/mindar-image-three.prod.js')
+
+        if (!isMounted) return
+
+        setStatus('Requesting camera permission...')
+
+        // Request camera access
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: {
@@ -38,12 +55,26 @@ const ARViewer = () => {
           },
         })
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          videoRef.current.play()
+        if (!isMounted) {
+          stream.getTracks().forEach(track => track.stop())
+          return
         }
 
-        setStatus('Loading targets.mind...')
+        streamTracks = stream.getTracks()
+
+        // Set video source
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          try {
+            await videoRef.current.play()
+          } catch (e) {
+            console.log('Video autoplay prevented, user interaction needed')
+          }
+        }
+
+        if (!isMounted) return
+
+        setStatus('Initializing MindAR...')
 
         // Initialize MindAR
         const mindarContainer = new MINDAR.IMAGE.Container({
@@ -52,106 +83,184 @@ const ARViewer = () => {
           imageTargetSrc: '/targets.mind',
         })
 
+        if (!isMounted) return
+
+        mindARRef.current = mindarContainer
         sceneRef.current = mindarContainer.scene
         cameraRef.current = mindarContainer.camera
         rendererRef.current = mindarContainer.renderer
 
-        // Create video player for the detected target
-        const videoPlane = new THREE.Group()
-        sceneRef.current.add(videoPlane)
+        setStatus('Setting up AR targets...')
 
-        // Create video texture and mesh
-        const canvas = document.createElement('canvas')
-        canvas.width = 1280
-        canvas.height = 720
-        const ctx = canvas.getContext('2d')
-        ctx.fillStyle = '#000000'
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        // Create video meshes for each target
+        Object.keys(TARGET_CONFIG).forEach((targetIndex) => {
+          const config = TARGET_CONFIG[targetIndex]
+          const index = parseInt(targetIndex)
 
-        const texture = new THREE.CanvasTexture(canvas)
-        const geometry = new THREE.PlaneGeometry(1, 1)
-        const material = new THREE.MeshBasicMaterial({
-          map: texture,
-          side: THREE.DoubleSide,
-          transparent: true,
-        })
-        const mesh = new THREE.Mesh(geometry, material)
-        mesh.scale.set(1.5, 1, 1)
-        videoPlane.add(mesh)
+          // Create video element
+          const videoElement = document.createElement('video')
+          videoElement.src = config.video
+          videoElement.crossOrigin = 'anonymous'
+          videoElement.loop = config.loop
+          videoElement.muted = true
+          videoElement.playsInline = true
+          videoPlayersRef.current[index] = videoElement
 
-        videoMeshRef.current = mesh
-        videoTextureRef.current = texture
+          // Create video texture
+          const videoTexture = new THREE.VideoTexture(videoElement)
+          videoTexture.minFilter = THREE.LinearFilter
+          videoTexture.magFilter = THREE.LinearFilter
+          videoTexture.format = THREE.RGBFormat
+          videoTexture.encoding = THREE.sRGBEncoding
 
-        // Create HTML video element
-        const videoElement = document.createElement('video')
-        videoElement.src = '/fire_letter_A.mp4'
-        videoElement.crossOrigin = 'anonymous'
-        videoElement.loop = false
-        videoElement.muted = true
-        videoPlayerRef.current = videoElement
+          // Create material with video texture
+          const material = new THREE.MeshBasicMaterial({
+            map: videoTexture,
+            side: THREE.DoubleSide,
+            transparent: false,
+            toneMapped: false,
+          })
 
-        // Create texture from video
-        const videoTexture = new THREE.VideoTexture(videoElement)
-        videoTexture.minFilter = THREE.LinearFilter
-        videoTexture.magFilter = THREE.LinearFilter
-        videoTexture.format = THREE.RGBFormat
+          // Create geometry and mesh
+          const geometry = new THREE.PlaneGeometry(1, 1)
+          const mesh = new THREE.Mesh(geometry, material)
+          mesh.scale.set(1.5, 1, 1)
+          mesh.position.z = 0.1
+          videoMeshesRef.current[index] = { mesh, videoTexture, videoElement }
 
-        material.map = videoTexture
-        material.needsUpdate = true
+          // Create anchor and add mesh
+          const anchor = mindarContainer.addAnchor(index)
+          anchorsRef.current[index] = anchor
 
-        // Anchor to first image target
-        const anchor = mindarContainer.addAnchor(0)
-        anchor.group.add(videoPlane)
+          anchor.group.add(mesh)
 
-        // Event handlers
-        anchor.onTargetFound = () => {
-          setMarkerDetected(true)
-          setStatus('Marker detected - Playing video')
-          if (videoPlayerRef.current) {
-            videoPlayerRef.current.currentTime = 0
-            videoPlayerRef.current.play().catch(err => {
-              console.log('Video play failed:', err)
-            })
-          }
-        }
+          // Track detection state
+          const detectionState = { detected: false, wasDetected: false }
 
-        anchor.onTargetLost = () => {
-          setMarkerDetected(false)
-          setStatus('Marker lost - Waiting for detection')
-          if (videoPlayerRef.current) {
-            videoPlayerRef.current.pause()
-            videoPlayerRef.current.currentTime = 0
-          }
-        }
+          // Handle target found
+          anchor.onTargetFound = () => {
+            detectionState.detected = true
+            setDetectedTargets(prev => ({ ...prev, [index]: true }))
+            setStatus(`${config.name} detected - Playing video`)
 
-        setStatus('Starting AR session...')
-        await mindarContainer.start()
-
-        // Render loop
-        const renderer = mindarContainer.renderer
-        renderer.setAnimationLoop(() => {
-          if (videoPlayerRef.current && videoTextureRef.current) {
-            if (videoPlayerRef.current.readyState === videoPlayerRef.current.HAVE_ENOUGH_DATA) {
-              videoTextureRef.current.needsUpdate = true
+            // Start video
+            if (videoElement) {
+              videoElement.currentTime = 0
+              const playPromise = videoElement.play()
+              if (playPromise !== undefined) {
+                playPromise.catch(err => {
+                  console.log(`Video ${index} play failed:`, err)
+                })
+              }
             }
           }
-          renderer.render(sceneRef.current, cameraRef.current)
+
+          // Handle target lost
+          anchor.onTargetLost = () => {
+            detectionState.detected = false
+            setDetectedTargets(prev => ({ ...prev, [index]: false }))
+            setStatus(`${config.name} lost - Waiting for detection`)
+
+            // Stop video and reset
+            if (videoElement) {
+              videoElement.pause()
+              videoElement.currentTime = 0
+            }
+          }
         })
 
-        setStatus('Ready')
-      } catch (error) {
-        console.error('MindAR initialization error:', error)
-        setStatus(`Error: ${error.message}`)
+        if (!isMounted) return
+
+        setStatus('Starting AR session...')
+
+        // Start MindAR
+        await mindarContainer.start()
+
+        if (!isMounted) return
+
+        setStatus('Ready - Point camera at marker')
+
+        // Render loop
+        const animate = () => {
+          animationIdRef.current = requestAnimationFrame(animate)
+
+          // Update video textures
+          Object.values(videoMeshesRef.current).forEach(({ videoElement, videoTexture }) => {
+            if (videoElement && videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
+              videoTexture.needsUpdate = true
+            }
+          })
+
+          // Render scene
+          if (rendererRef.current && sceneRef.current && cameraRef.current) {
+            rendererRef.current.render(sceneRef.current, cameraRef.current)
+          }
+        }
+
+        animate()
+      } catch (err) {
+        console.error('MindAR initialization error:', err)
+        if (isMounted) {
+          setError(err.message || 'Failed to initialize MindAR')
+          setStatus(`Error: ${err.message}`)
+        }
       }
     }
 
     initializeMindAR()
 
+    // Cleanup on unmount
     return () => {
-      // Cleanup
+      isMounted = false
+
+      // Cancel animation frame
+      if (animationIdRef.current) {
+        cancelAnimationFrame(animationIdRef.current)
+      }
+
+      // Stop video playback
+      Object.values(videoPlayersRef.current).forEach(video => {
+        if (video) {
+          video.pause()
+          video.src = ''
+        }
+      })
+
+      // Stop camera stream
+      streamTracks.forEach(track => {
+        if (track && track.stop) {
+          track.stop()
+        }
+      })
+
       if (videoRef.current && videoRef.current.srcObject) {
         const tracks = videoRef.current.srcObject.getTracks()
         tracks.forEach(track => track.stop())
+      }
+
+      // Dispose Three.js resources
+      Object.values(videoMeshesRef.current).forEach(({ videoTexture, mesh }) => {
+        if (videoTexture) videoTexture.dispose()
+        if (mesh) {
+          mesh.geometry.dispose()
+          if (mesh.material) mesh.material.dispose()
+        }
+      })
+
+      if (sceneRef.current) {
+        while (sceneRef.current.children.length > 0) {
+          const child = sceneRef.current.children[0]
+          sceneRef.current.remove(child)
+        }
+      }
+
+      if (rendererRef.current) {
+        rendererRef.current.dispose()
+      }
+
+      // Stop MindAR
+      if (mindARRef.current && mindARRef.current.stop) {
+        mindARRef.current.stop().catch(err => console.log('Error stopping MindAR:', err))
       }
     }
   }, [])
@@ -165,26 +274,63 @@ const ARViewer = () => {
           display: 'none',
         }}
         playsInline
+        autoPlay
+        muted
       />
 
       {/* Canvas for AR rendering */}
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full"
+        style={{
+          display: 'block',
+        }}
       />
 
       {/* Status overlay */}
-      <div className="absolute top-4 left-4 bg-black/80 text-white px-4 py-2 rounded-lg font-mono text-sm">
-        <p className={markerDetected ? 'text-green-400' : 'text-yellow-400'}>
-          {markerDetected ? '● ' : '○ '}
+      <div className="absolute top-4 left-4 max-w-xs bg-black/90 backdrop-blur-sm text-white px-4 py-3 rounded-lg font-mono text-sm border border-white/20">
+        <p className={`flex items-center gap-2 ${
+          Object.values(detectedTargets).some(v => v) ? 'text-green-400' : 'text-yellow-400'
+        }`}>
+          <span className={`text-lg ${
+            Object.values(detectedTargets).some(v => v) ? 'animate-pulse' : 'animate-bounce'
+          }`}>
+            {Object.values(detectedTargets).some(v => v) ? '🟢' : '🔵'}
+          </span>
           {status}
         </p>
       </div>
 
+      {/* Detected targets info */}
+      {Object.keys(detectedTargets).some(key => detectedTargets[key]) && (
+        <div className="absolute top-4 right-4 bg-green-900/80 backdrop-blur-sm text-green-100 px-4 py-3 rounded-lg text-sm border border-green-500/30">
+          <p className="font-semibold mb-1">Detected Targets:</p>
+          {Object.entries(detectedTargets).map(([idx, detected]) => (
+            detected && (
+              <p key={idx} className="text-xs text-green-200">
+                ✓ {TARGET_CONFIG[idx]?.name || `Target ${idx}`}
+              </p>
+            )
+          ))}
+        </div>
+      )}
+
+      {/* Error overlay */}
+      {error && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-red-900/90 text-red-100 px-6 py-4 rounded-lg max-w-sm border border-red-500/50">
+            <p className="font-semibold mb-2">❌ Error</p>
+            <p className="text-sm">{error}</p>
+            <p className="text-xs text-red-300 mt-3">Please check browser console for details</p>
+          </div>
+        </div>
+      )}
+
       {/* Instructions */}
-      <div className="absolute bottom-4 left-4 right-4 bg-black/80 text-white px-4 py-3 rounded-lg text-sm text-center">
-        <p>📸 Point camera at your marker</p>
-        <p className="text-xs text-gray-400 mt-2">Video will play automatically when marker is detected</p>
+      <div className="absolute bottom-4 left-4 right-4 bg-black/80 backdrop-blur-sm text-white px-4 py-3 rounded-lg text-sm text-center border border-white/20">
+        <p className="font-semibold mb-1">📱 AR Video Player</p>
+        <p className="text-xs text-gray-300">Point your camera at the marker image</p>
+        <p className="text-xs text-gray-400 mt-1">Videos will play automatically when detected</p>
       </div>
     </div>
   )
