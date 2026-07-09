@@ -3,32 +3,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 
-// Load MindAR script dynamically
-const loadMindARScript = () => {
-  return new Promise((resolve, reject) => {
-    // Check if already loaded
-    if (typeof window !== 'undefined' && window.MINDAR) {
-      resolve(window.MINDAR)
-      return
-    }
-
-    const script = document.createElement('script')
-    script.src = 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-three.prod.js'
-    script.async = true
-    script.onload = () => {
-      if (window.MINDAR) {
-        resolve(window.MINDAR)
-      } else {
-        reject(new Error('MindAR failed to load'))
-      }
-    }
-    script.onerror = () => {
-      reject(new Error('Failed to load MindAR script'))
-    }
-    document.head.appendChild(script)
-  })
-}
-
 const ARViewer = () => {
   const containerRef = useRef(null)
   const videoRef = useRef(null)
@@ -64,12 +38,23 @@ const ARViewer = () => {
 
         setStatus('Loading MindAR library...')
 
-        // Load MindAR from CDN
-        const MINDAR = await loadMindARScript()
+        // Wait for MindAR to be available globally
+        let MINDAR = null
+        let attempts = 0
+        const maxAttempts = 50 // 5 seconds with 100ms intervals
 
-        if (!isMounted || !MINDAR) {
-          return
+        while (!window.MINDAR && attempts < maxAttempts && isMounted) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+          attempts++
         }
+
+        MINDAR = window.MINDAR
+
+        if (!MINDAR || !MINDAR.IMAGE) {
+          throw new Error('MindAR library failed to load. Check network connection.')
+        }
+
+        if (!isMounted) return
 
         console.log('MindAR loaded successfully')
 
@@ -112,9 +97,6 @@ const ARViewer = () => {
           video: videoRef.current,
           imageTargetSrc: '/targets.mind',
           maxTrack: 4,
-          uiLoading: 'yes',
-          uiScanning: 'yes',
-          uiError: 'yes',
         })
 
         if (!isMounted) return
@@ -170,12 +152,8 @@ const ARViewer = () => {
 
           anchor.group.add(mesh)
 
-          // Track detection state
-          const detectionState = { detected: false, wasDetected: false }
-
           // Handle target found
           anchor.onTargetFound = () => {
-            detectionState.detected = true
             setDetectedTargets(prev => ({ ...prev, [index]: true }))
             setStatus(`${config.name} detected - Playing video`)
             console.log(`Target ${index} found`)
@@ -194,7 +172,6 @@ const ARViewer = () => {
 
           // Handle target lost
           anchor.onTargetLost = () => {
-            detectionState.detected = false
             setDetectedTargets(prev => ({ ...prev, [index]: false }))
             setStatus(`${config.name} lost - Waiting for detection`)
             console.log(`Target ${index} lost`)
@@ -307,6 +284,7 @@ const ARViewer = () => {
 
   return (
     <div ref={containerRef} className="relative w-full h-screen overflow-hidden bg-black">
+      {/* MindAR Script - Loaded in HTML */}
       {/* Hidden video element for camera feed */}
       <video
         ref={videoRef}
@@ -362,10 +340,10 @@ const ARViewer = () => {
             <p className="font-semibold mb-2">❌ Error</p>
             <p className="text-sm mb-3">{error}</p>
             <div className="text-xs text-red-300 space-y-1">
-              <p>✓ Check browser console (F12)</p>
+              <p>✓ Check console (F12 → Console)</p>
               <p>✓ Verify targets.mind in public/</p>
-              <p>✓ Try refreshing page</p>
-              <p>✓ Check your internet connection</p>
+              <p>✓ Check internet connection</p>
+              <p>✓ Try hard refresh: Ctrl+Shift+R</p>
             </div>
           </div>
         </div>
