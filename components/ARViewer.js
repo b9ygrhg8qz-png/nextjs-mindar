@@ -3,6 +3,32 @@
 import React, { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 
+// Load MindAR script dynamically
+const loadMindARScript = () => {
+  return new Promise((resolve, reject) => {
+    // Check if already loaded
+    if (typeof window !== 'undefined' && window.MINDAR) {
+      resolve(window.MINDAR)
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-three.prod.js'
+    script.async = true
+    script.onload = () => {
+      if (window.MINDAR) {
+        resolve(window.MINDAR)
+      } else {
+        reject(new Error('MindAR failed to load'))
+      }
+    }
+    script.onerror = () => {
+      reject(new Error('Failed to load MindAR script'))
+    }
+    document.head.appendChild(script)
+  })
+}
+
 const ARViewer = () => {
   const containerRef = useRef(null)
   const videoRef = useRef(null)
@@ -38,10 +64,14 @@ const ARViewer = () => {
 
         setStatus('Loading MindAR library...')
 
-        // Import MindAR and Three.js
-        const { MINDAR } = await import('mind-ar/dist/mindar-image-three.prod.js')
+        // Load MindAR from CDN
+        const MINDAR = await loadMindARScript()
 
-        if (!isMounted) return
+        if (!isMounted || !MINDAR) {
+          return
+        }
+
+        console.log('MindAR loaded successfully')
 
         setStatus('Requesting camera permission...')
 
@@ -68,7 +98,7 @@ const ARViewer = () => {
           try {
             await videoRef.current.play()
           } catch (e) {
-            console.log('Video autoplay prevented, user interaction needed')
+            console.log('Video autoplay prevented')
           }
         }
 
@@ -76,11 +106,15 @@ const ARViewer = () => {
 
         setStatus('Initializing MindAR...')
 
-        // Initialize MindAR
+        // Initialize MindAR Container
         const mindarContainer = new MINDAR.IMAGE.Container({
           canvas: canvasRef.current,
           video: videoRef.current,
           imageTargetSrc: '/targets.mind',
+          maxTrack: 4,
+          uiLoading: 'yes',
+          uiScanning: 'yes',
+          uiError: 'yes',
         })
 
         if (!isMounted) return
@@ -89,6 +123,8 @@ const ARViewer = () => {
         sceneRef.current = mindarContainer.scene
         cameraRef.current = mindarContainer.camera
         rendererRef.current = mindarContainer.renderer
+
+        console.log('MindAR container created')
 
         setStatus('Setting up AR targets...')
 
@@ -142,6 +178,7 @@ const ARViewer = () => {
             detectionState.detected = true
             setDetectedTargets(prev => ({ ...prev, [index]: true }))
             setStatus(`${config.name} detected - Playing video`)
+            console.log(`Target ${index} found`)
 
             // Start video
             if (videoElement) {
@@ -160,6 +197,7 @@ const ARViewer = () => {
             detectionState.detected = false
             setDetectedTargets(prev => ({ ...prev, [index]: false }))
             setStatus(`${config.name} lost - Waiting for detection`)
+            console.log(`Target ${index} lost`)
 
             // Stop video and reset
             if (videoElement) {
@@ -175,6 +213,8 @@ const ARViewer = () => {
 
         // Start MindAR
         await mindarContainer.start()
+
+        console.log('MindAR started successfully')
 
         if (!isMounted) return
 
@@ -320,8 +360,13 @@ const ARViewer = () => {
         <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="bg-red-900/90 text-red-100 px-6 py-4 rounded-lg max-w-sm border border-red-500/50">
             <p className="font-semibold mb-2">❌ Error</p>
-            <p className="text-sm">{error}</p>
-            <p className="text-xs text-red-300 mt-3">Please check browser console for details</p>
+            <p className="text-sm mb-3">{error}</p>
+            <div className="text-xs text-red-300 space-y-1">
+              <p>✓ Check browser console (F12)</p>
+              <p>✓ Verify targets.mind in public/</p>
+              <p>✓ Try refreshing page</p>
+              <p>✓ Check your internet connection</p>
+            </div>
           </div>
         </div>
       )}
