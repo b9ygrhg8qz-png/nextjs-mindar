@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
-import * as THREE from 'three'
 
 const ARViewer = () => {
   const containerRef = useRef(null)
@@ -38,25 +37,37 @@ const ARViewer = () => {
 
         setStatus('Loading MindAR library...')
 
-        // Wait for MindAR to be available globally
+        // Wait for MindAR and THREE to be available globally
         let MINDAR = null
+        let THREE = null
         let attempts = 0
-        const maxAttempts = 50 // 5 seconds with 100ms intervals
+        const maxAttempts = 100 // 10 seconds with 100ms intervals
 
-        while (!window.MINDAR && attempts < maxAttempts && isMounted) {
+        console.log('Waiting for MindAR and THREE.js...')
+
+        while ((!window.MINDAR || !window.THREE) && attempts < maxAttempts && isMounted) {
           await new Promise(resolve => setTimeout(resolve, 100))
           attempts++
+          if (attempts % 10 === 0) {
+            console.log(`Still loading... (${attempts / 10}s) - MINDAR: ${!!window.MINDAR}, THREE: ${!!window.THREE}`)
+          }
         }
 
         MINDAR = window.MINDAR
+        THREE = window.THREE
 
-        if (!MINDAR || !MINDAR.IMAGE) {
-          throw new Error('MindAR library failed to load. Check network connection.')
+        console.log('Load status:', { MINDAR: !!MINDAR, THREE: !!THREE, attempts })
+
+        if (!MINDAR || !MINDAR.IMAGE || !THREE) {
+          throw new Error(
+            `MindAR library failed to load. MINDAR: ${!!MINDAR}, THREE: ${!!THREE}. ` +
+            `Check that /public/mindar-image-three.prod.js exists and Three.js is loaded from CDN.`
+          )
         }
 
         if (!isMounted) return
 
-        console.log('MindAR loaded successfully')
+        console.log('MindAR and THREE.js loaded successfully')
 
         setStatus('Requesting camera permission...')
 
@@ -129,14 +140,12 @@ const ARViewer = () => {
           videoTexture.minFilter = THREE.LinearFilter
           videoTexture.magFilter = THREE.LinearFilter
           videoTexture.format = THREE.RGBFormat
-          videoTexture.encoding = THREE.sRGBEncoding
 
           // Create material with video texture
           const material = new THREE.MeshBasicMaterial({
             map: videoTexture,
             side: THREE.DoubleSide,
             transparent: false,
-            toneMapped: false,
           })
 
           // Create geometry and mesh
@@ -284,7 +293,6 @@ const ARViewer = () => {
 
   return (
     <div ref={containerRef} className="relative w-full h-screen overflow-hidden bg-black">
-      {/* MindAR Script - Loaded in HTML */}
       {/* Hidden video element for camera feed */}
       <video
         ref={videoRef}
@@ -341,8 +349,9 @@ const ARViewer = () => {
             <p className="text-sm mb-3">{error}</p>
             <div className="text-xs text-red-300 space-y-1">
               <p>✓ Check console (F12 → Console)</p>
+              <p>✓ Verify mindar-image-three.prod.js in public/</p>
               <p>✓ Verify targets.mind in public/</p>
-              <p>✓ Check internet connection</p>
+              <p>✓ Check internet connection for Three.js CDN</p>
               <p>✓ Try hard refresh: Ctrl+Shift+R</p>
             </div>
           </div>

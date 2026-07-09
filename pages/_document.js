@@ -4,8 +4,10 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
-        {/* Load MindAR from local public folder */}
-        <script src="/mindar-image-three.umd.js" async></script>
+        {/* Three.js library */}
+        <script src="https://cdn.jsdelivr.net/npm/three@r128/build/three.min.js"></script>
+        {/* MindAR library from public folder */}
+        <script src="/mindar-image-three.prod.js"></script>
       </Head>
       <body>
         <Main />
